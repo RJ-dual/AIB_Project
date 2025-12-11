@@ -17,6 +17,7 @@ from agents.cartpole_dqn import DQNSolver, DQNConfig
 from agents.cartpole_ppo import PPOSolver, PPOConfig
 from agents.cartpole_actorcritic import ActorCriticConfig, ActorCriticNet, ActorCriticSolver
 from scores.score_logger import ScoreLogger
+from agents.cartpole_cql import CQLSolver,CQLConfig
 
 ENV_NAME = "CartPole-v1"
 MODEL_DIR = "models"
@@ -34,8 +35,10 @@ def create_agent(algorithm: str, obs_dim: int, act_dim: int):
         return PPOSolver(obs_dim, act_dim, cfg=PPOConfig())
     elif algorithm == "actorcritic":
         return ActorCriticSolver(obs_dim, act_dim, cfg=ActorCriticConfig()) 
+    elif algorithm == "cql":  
+        return CQLSolver(obs_dim, act_dim, cfg=CQLConfig())
     else:
-        raise ValueError(f"Unsupported algorithm: '{algorithm}'. Choose from ['dqn', 'ppo'].")
+        raise ValueError(f"Unsupported algorithm: '{algorithm}'. Choose from ['dqn', 'ppo','actorcritic','cql'].")
 
 
 def get_model_path(algorithm: str) -> str:
@@ -149,6 +152,9 @@ def evaluate(
             algorithm = "dqn"
         elif "actorcritic" in basename:
             algorithm = "actorcritic"
+         
+        elif "cql" in basename: 
+            algorithm = "cql"
         else:
             raise ValueError(
                 f"Cannot auto-detect algorithm from filename '{basename}'. "
@@ -169,6 +175,8 @@ def evaluate(
         agent = PPOSolver(obs_dim, act_dim, cfg=PPOConfig())
     elif algorithm.lower() == "actorcritic":
         agent = ActorCriticSolver(obs_dim, act_dim, cfg=ActorCriticConfig())
+    elif algorithm.lower() == "cql":  
+        agent = CQLSolver(obs_dim, act_dim, cfg=CQLConfig())
     else:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
@@ -217,7 +225,8 @@ def train_ppo(**kwargs):
 def train_actorcritic(**kwargs):
     return train(algorithm="actorcritic", **kwargs)
 
-
+def train_cql(**kwargs):
+    return train(algorithm="cql", **kwargs)
 # ----------------------------
 # Main Entry Point
 # ----------------------------
@@ -231,10 +240,13 @@ if __name__ == "__main__":
     # train(algorithm="ppo", num_episodes=500)
     
     # ✅ Train Actor-Critic
-    train(algorithm="actorcritic", num_episodes=500)
+    # train(algorithm="actorcritic", num_episodes=500)
+    
+    # ✅ Train cql
+    train(algorithm="cql", num_episodes=500)
 
     # ✅ Evaluate the latest model (auto-detects algo)
     # evaluate(episodes=100, render=False)
 
     # ✅ Or evaluate specific model & algo:
-    evaluate(model_path="models/cartpole_actorcritic.torch", algorithm="actorcritic", episodes=100, render=True)
+    evaluate(model_path="models/cartpole_cql.torch", algorithm="cql", episodes=100, render=False)

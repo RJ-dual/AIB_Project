@@ -31,7 +31,7 @@ import torch.optim as optim
 # γ: discount factor for future rewards
 GAMMA = 0.99
 # Learning rate for Adam optimizer
-LR = 1e-3
+LR = 5e-4
 # Mini-batch size sampled from the replay buffer
 BATCH_SIZE = 32
 # Replay buffer capacity (number of transitions stored)
@@ -41,7 +41,7 @@ INITIAL_EXPLORATION_STEPS = 1_000
 # ε schedule: start, final, multiplicative decay per update step
 EPS_START = 1.0
 EPS_END = 0.05
-EPS_DECAY = 0.995
+EPS_DECAY = 0.99
 # How often (in steps) to hard-copy online -> target network
 TARGET_UPDATE_STEPS = 500
 
@@ -53,20 +53,20 @@ class QNet(nn.Module):
 
     def __init__(self, obs_dim: int, act_dim: int):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(obs_dim, 64), 
-            nn.ReLU(),
-            nn.Linear(64, act_dim), 
-        )
+        # self.net = nn.Sequential(
+        #     nn.Linear(obs_dim, 64), 
+        #     nn.ReLU(),
+        #     nn.Linear(64, act_dim), 
+        # )
         
         # original better NNet:
-        # self.net = nn.Sequential(
-        #     nn.Linear(obs_dim, 128),
-        #     nn.ReLU(),
-        #     nn.Linear(128, 128),
-        #     nn.ReLU(),
-        #     nn.Linear(128, act_dim),
-        # )
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, act_dim),
+        )
         
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -313,3 +313,11 @@ class DQNSolver:
         """Multiplicative ε decay with lower bound EPS_END; keep a global step counter."""
         self.exploration_rate = max(self.cfg.eps_end, self.exploration_rate * self.cfg.eps_decay)
         self.steps += 1
+
+    def get_stats(self):
+        return {
+            "loss": getattr(self, "last_loss", None),
+            "epsilon": self.exploration_rate,
+            "buffer_size": len(self.memory),
+            "steps": self.steps
+        }

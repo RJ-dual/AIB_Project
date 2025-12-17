@@ -102,9 +102,6 @@ def train(
     render_mode = "human" if render else None
     env = gym.make(ENV_NAME, render_mode=render_mode)
 
-    render_mode = "human" if render else None
-    env = gym.make(ENV_NAME, render_mode=render_mode)
-
     obs_dim = env.observation_space.shape[0]
     act_dim = env.action_space.n
 
@@ -126,7 +123,6 @@ def train(
         state, _ = env.reset(seed=seed_offset + ep)
         state = np.reshape(state, (1, obs_dim))
         done = False
-        done = False
         steps = 0
 
         while not done:
@@ -136,9 +132,6 @@ def train(
 
             if terminal_penalty and done:
                 reward = -1.0
-
-            next_state = np.reshape(next_state, (1, obs_dim))
-            steps += 1
 
             next_state = np.reshape(next_state, (1, obs_dim))
             steps += 1
@@ -175,14 +168,9 @@ def evaluate(
 
     If `model_path` is None: picks first .torch file in models/.
     If `algorithm` is None: infers from filename (e.g., '*ppo*' → 'ppo').
-    Evaluate a trained model.
-
-    If `model_path` is None: picks first .torch file in models/.
-    If `algorithm` is None: infers from filename (e.g., '*ppo*' → 'ppo').
     """
     # Resolve model path
     if model_path is None:
-        candidates = [f for f in os.listdir(MODEL_DIR) if f.endswith(".torch")]
         candidates = [f for f in os.listdir(MODEL_DIR) if f.endswith(".torch")]
         if not candidates:
             raise FileNotFoundError(f"No .torch model found in '{MODEL_DIR}'. Please train first.")
@@ -191,26 +179,6 @@ def evaluate(
     else:
         print(f"[Eval] Using provided model: {model_path}")
 
-    # Infer algorithm from filename if not given
-    if algorithm is None:
-        basename = os.path.basename(model_path).lower()
-        if "ppo" in basename:
-            algorithm = "ppo"
-        elif "dqn" in basename:
-            algorithm = "dqn"
-        elif "actorcritic" in basename:
-            algorithm = "actorcritic"
-         
-        elif "cql" in basename: 
-            algorithm = "cql"
-        else:
-            raise ValueError(
-                f"Cannot auto-detect algorithm from filename '{basename}'. "
-                f"Please specify `algorithm=` explicitly (e.g., algorithm='ppo')."
-            )
-    print(f"[Eval] Algorithm: {algorithm.upper()}")
-
-    # Create environment
     # Infer algorithm from filename if not given
     if algorithm is None:
         basename = os.path.basename(model_path).lower()
@@ -299,6 +267,22 @@ def train_cql(**kwargs):
 # Main Entry Point
 # ----------------------------
 if __name__ == "__main__":
-    # Example: quick training then a short evaluation
-    agent = train(num_episodes=500, terminal_penalty=True)
-    evaluate(model_path="models/cartpole_dqn.torch", algorithm="dqn", episodes=100, render=False, fps=60)
+    # 🔁 Example workflows:
+
+    # ✅ Train DQN
+    # train(algorithm="dqn", num_episodes=500)
+
+    # ✅ Train PPO
+    # train(algorithm="ppo", num_episodes=500)
+    
+    # ✅ Train Actor-Critic
+    # train(algorithm="actorcritic", num_episodes=500)
+    
+    # ✅ Train cql
+    # train(algorithm="cql", num_episodes=500)
+
+    # ✅ Evaluate the latest model (auto-detects algo)
+    # evaluate(episodes=100, render=False)
+
+    # ✅ Or evaluate specific model & algo:
+    evaluate(model_path="models/DQN_lr0.0005_gamma0.99_eps0.99.torch", algorithm="dqn", episodes=100, render=True)

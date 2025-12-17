@@ -1,10 +1,6 @@
 """
-"""
 CartPole Training & Evaluation (PyTorch + Gymnasium)
 ---------------------------------------------------
-Unified training/evaluation for DQN, PPO (and future algorithms).
-- Saves models to standardized paths: `cartpole_{algo}.torch`
-- Evaluation auto-detects algorithm from filename if not specified.
 Unified training/evaluation for DQN, PPO (and future algorithms).
 - Saves models to standardized paths: `cartpole_{algo}.torch`
 - Evaluation auto-detects algorithm from filename if not specified.
@@ -192,9 +188,6 @@ def evaluate(
             raise FileNotFoundError(f"No .torch model found in '{MODEL_DIR}'. Please train first.")
         model_path = os.path.join(MODEL_DIR, candidates[0])
         print(f"[Eval] Auto-selected model: {model_path}")
-            raise FileNotFoundError(f"No .torch model found in '{MODEL_DIR}'. Please train first.")
-        model_path = os.path.join(MODEL_DIR, candidates[0])
-        print(f"[Eval] Auto-selected model: {model_path}")
     else:
         print(f"[Eval] Using provided model: {model_path}")
 
@@ -244,15 +237,8 @@ def evaluate(
     act_dim = env.action_space.n
 
     # Create agent
-    # Create agent
     if algorithm.lower() == "dqn":
         agent = DQNSolver(obs_dim, act_dim, cfg=DQNConfig())
-    elif algorithm.lower() == "ppo":
-        agent = PPOSolver(obs_dim, act_dim, cfg=PPOConfig())
-    elif algorithm.lower() == "actorcritic":
-        agent = ActorCriticSolver(obs_dim, act_dim, cfg=ActorCriticConfig())
-    elif algorithm.lower() == "cql":  
-        agent = CQLSolver(obs_dim, act_dim, cfg=CQLConfig())
     elif algorithm.lower() == "ppo":
         agent = PPOSolver(obs_dim, act_dim, cfg=PPOConfig())
     elif algorithm.lower() == "actorcritic":
@@ -313,22 +299,6 @@ def train_cql(**kwargs):
 # Main Entry Point
 # ----------------------------
 if __name__ == "__main__":
-    # 🔁 Example workflows:
-
-    # ✅ Train DQN
-    # train(algorithm="dqn", num_episodes=500)
-
-    # ✅ Train PPO
-    # train(algorithm="ppo", num_episodes=500)
-    
-    # ✅ Train Actor-Critic
-    # train(algorithm="actorcritic", num_episodes=500)
-    
-    # ✅ Train cql
-    # train(algorithm="cql", num_episodes=500)
-
-    # ✅ Evaluate the latest model (auto-detects algo)
-    # evaluate(episodes=100, render=False)
-
-    # ✅ Or evaluate specific model & algo:
-    evaluate(model_path="models/DQN_lr0.0005_gamma0.99_eps0.99.torch", algorithm="dqn", episodes=100, render=True)
+    # Example: quick training then a short evaluation
+    agent = train(num_episodes=500, terminal_penalty=True)
+    evaluate(model_path="models/cartpole_dqn.torch", algorithm="dqn", episodes=100, render=False, fps=60)

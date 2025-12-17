@@ -97,3 +97,4 @@ class ScoreLogger:
         with open(path, "a", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([score])
+    

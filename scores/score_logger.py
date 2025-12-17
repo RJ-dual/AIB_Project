@@ -1,10 +1,3 @@
-"""
-Score Logger for Reinforcement Learning
----------------------------------------
-This utility logs episode scores, computes rolling averages,
-and plots training progress over time.
-"""
-
 import os
 import csv
 from statistics import mean
@@ -14,37 +7,35 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# Constants
-SCORES_DIR = "./scores"
-SCORES_CSV_PATH = os.path.join(SCORES_DIR, "scores.csv")
-SCORES_PNG_PATH = os.path.join(SCORES_DIR, "scores.png")
-SOLVED_CSV_PATH = os.path.join(SCORES_DIR, "solved.csv")
-SOLVED_PNG_PATH = os.path.join(SCORES_DIR, "solved.png")
-
+# 满分要求：保持目标分数线
 AVERAGE_SCORE_TO_SOLVE = 475
 CONSECUTIVE_RUNS_TO_SOLVE = 100
 
-
 class ScoreLogger:
-    """Logs episode scores and generates plots."""
+    """记录每个算法的得分并生成独立的图表，支持动态命名。"""
 
-    def __init__(self, env_name: str):
+    def __init__(self, env_name: str, log_name: str = "run"):
         self.env_name = env_name
+        self.log_name = log_name
         self.scores = deque(maxlen=CONSECUTIVE_RUNS_TO_SOLVE)
 
-        os.makedirs(SCORES_DIR, exist_ok=True)
+        # 动态定义保存目录和文件路径
+        self.target_dir = "./scores"
+        os.makedirs(self.target_dir, exist_ok=True)
+        
+        self.csv_path = os.path.join(self.target_dir, f"{log_name}.csv")
+        self.png_path = os.path.join(self.target_dir, f"{log_name}.png")
 
-        # Clean old score files
-        for path in [SCORES_PNG_PATH, SCORES_CSV_PATH]:
-            if os.path.exists(path):
-                os.remove(path)
+        # 如果存在旧的实验记录，则删除（防止数据混淆）
+        if os.path.exists(self.csv_path): os.remove(self.csv_path)
+        if os.path.exists(self.png_path): os.remove(self.png_path)
 
     def add_score(self, score: float, run: int):
-        """Add a score for a given episode and update logs/plots."""
-        self._save_csv(SCORES_CSV_PATH, score)
+        """添加分数并更新该算法专属的图表。"""
+        self._save_csv(self.csv_path, score)
         self._save_png(
-            input_path=SCORES_CSV_PATH,
-            output_path=SCORES_PNG_PATH,
+            input_path=self.csv_path,
+            output_path=self.png_path,
             x_label="Episodes",
             y_label="Scores",
             average_of_n_last=CONSECUTIVE_RUNS_TO_SOLVE,
@@ -55,84 +46,54 @@ class ScoreLogger:
 
         self.scores.append(score)
         mean_score = mean(self.scores)
-        print(f"Scores: (min: {min(self.scores)}, avg: {mean_score:.2f}, max: {max(self.scores)})")
+        print(f"[{self.log_name}] Ep: {run}, Last: {score}, Avg: {mean_score:.2f}")
 
-        if mean_score >= AVERAGE_SCORE_TO_SOLVE and len(self.scores) >= CONSECUTIVE_RUNS_TO_SOLVE:
-            solved_in = run - CONSECUTIVE_RUNS_TO_SOLVE
-            print(f"Solved in {solved_in} runs, {run} total runs.")
-            self._save_csv(SOLVED_CSV_PATH, solved_in)
-            self._save_png(
-                input_path=SOLVED_CSV_PATH,
-                output_path=SOLVED_PNG_PATH,
-                x_label="Trials",
-                y_label="Steps before solved",
-                average_of_n_last=None,
-                show_goal=False,
-                show_trend=False,
-                show_legend=False,
-            )
-            # exit(0) 
-
-    def _save_png(self, input_path, output_path,
-                  x_label, y_label,
-                  average_of_n_last,
-                  show_goal, show_trend, show_legend):
-        """Generate a PNG chart for score evolution."""
+    def _save_png(self, input_path, output_path, x_label, y_label,
+                  average_of_n_last, show_goal, show_trend, show_legend):
+        """完整保留原始绘图逻辑：包含 Goal Line, Trend Line, MA。"""
         if not os.path.exists(input_path):
             return
 
         x, y = [], []
         with open(input_path, "r") as scores_file:
             reader = csv.reader(scores_file)
-            data = list(reader)
-            for i, row in enumerate(data):
+            for i, row in enumerate(reader):
                 x.append(i)
                 y.append(float(row[0]))
 
-        plt.subplots()
-        plt.plot(x, y, label="Score per Episode")
+        plt.figure(figsize=(10, 5))
+        plt.plot(x, y, label="Score per Episode", alpha=0.5)
 
+        # 1. 最近 100 步平均值 (红色虚线)
         if average_of_n_last is not None and len(x) > 0:
             avg_range = min(average_of_n_last, len(x))
-            plt.plot(
-                x[-avg_range:],
-                [np.mean(y[-avg_range:])] * avg_range,
-                linestyle="--",
-                label=f"Average of last {avg_range}",
-            )
+            plt.plot(x[-avg_range:], [np.mean(y[-avg_range:])] * avg_range,
+                     linestyle="--", color="orange", label=f"Avg Last {avg_range}")
 
+        # 2. 目标线 475 (绿色点线)
         if show_goal:
-            # plot the target score line
-            plt.plot(x, [AVERAGE_SCORE_TO_SOLVE] * len(x), linestyle=":", label=f"Goal ({AVERAGE_SCORE_TO_SOLVE} Avg)")
+            plt.axhline(y=AVERAGE_SCORE_TO_SOLVE, color='green', linestyle=":", 
+                        label=f"Goal ({AVERAGE_SCORE_TO_SOLVE})")
 
+        # 3. 趋势线 (橙色点划线)
         if show_trend and len(x) > 1:
             y_trend = []
-            current_block_scores = [] 
-            
-            y_np = np.array(y)
-            
-            for i in range(len(y_np)):
-                current_block_scores.append(y_np[i])
-                
-                current_avg = np.mean(current_block_scores)
-                y_trend.append(current_avg)
-                
-                if (i + 1) % 100 == 0:
-                    current_block_scores = []
-            
-            plt.plot(x, y_trend, linestyle="-.", label="Trend (100-ep Reset Avg)")
+            block = []
+            for val in y:
+                block.append(val)
+                y_trend.append(np.mean(block))
+                if len(block) >= 100: block = [] # 每100步重置一次均值计算
+            plt.plot(x, y_trend, linestyle="-.", color="red", label="Trend")
 
-        plt.title(f"{self.env_name} - Training Progress")
+        plt.title(f"{self.env_name} Training: {self.log_name}")
         plt.xlabel(x_label)
         plt.ylabel(y_label)
-        if show_legend:
-            plt.legend(loc="upper left")
+        if show_legend: plt.legend(loc="upper left")
+        plt.grid(True, alpha=0.2)
         plt.savefig(output_path, bbox_inches="tight")
         plt.close()
 
     def _save_csv(self, path, score: float):
-        """Append a score to the given CSV file."""
-        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([score])

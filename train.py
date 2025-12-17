@@ -1,6 +1,10 @@
 """
+"""
 CartPole Training & Evaluation (PyTorch + Gymnasium)
 ---------------------------------------------------
+Unified training/evaluation for DQN, PPO (and future algorithms).
+- Saves models to standardized paths: `cartpole_{algo}.torch`
+- Evaluation auto-detects algorithm from filename if not specified.
 Unified training/evaluation for DQN, PPO (and future algorithms).
 - Saves models to standardized paths: `cartpole_{algo}.torch`
 - Evaluation auto-detects algorithm from filename if not specified.
@@ -102,6 +106,9 @@ def train(
     render_mode = "human" if render else None
     env = gym.make(ENV_NAME, render_mode=render_mode)
 
+    render_mode = "human" if render else None
+    env = gym.make(ENV_NAME, render_mode=render_mode)
+
     obs_dim = env.observation_space.shape[0]
     act_dim = env.action_space.n
 
@@ -123,6 +130,7 @@ def train(
         state, _ = env.reset(seed=seed_offset + ep)
         state = np.reshape(state, (1, obs_dim))
         done = False
+        done = False
         steps = 0
 
         while not done:
@@ -132,6 +140,9 @@ def train(
 
             if terminal_penalty and done:
                 reward = -1.0
+
+            next_state = np.reshape(next_state, (1, obs_dim))
+            steps += 1
 
             next_state = np.reshape(next_state, (1, obs_dim))
             steps += 1
@@ -168,11 +179,19 @@ def evaluate(
 
     If `model_path` is None: picks first .torch file in models/.
     If `algorithm` is None: infers from filename (e.g., '*ppo*' → 'ppo').
+    Evaluate a trained model.
+
+    If `model_path` is None: picks first .torch file in models/.
+    If `algorithm` is None: infers from filename (e.g., '*ppo*' → 'ppo').
     """
     # Resolve model path
     if model_path is None:
         candidates = [f for f in os.listdir(MODEL_DIR) if f.endswith(".torch")]
+        candidates = [f for f in os.listdir(MODEL_DIR) if f.endswith(".torch")]
         if not candidates:
+            raise FileNotFoundError(f"No .torch model found in '{MODEL_DIR}'. Please train first.")
+        model_path = os.path.join(MODEL_DIR, candidates[0])
+        print(f"[Eval] Auto-selected model: {model_path}")
             raise FileNotFoundError(f"No .torch model found in '{MODEL_DIR}'. Please train first.")
         model_path = os.path.join(MODEL_DIR, candidates[0])
         print(f"[Eval] Auto-selected model: {model_path}")
@@ -199,14 +218,41 @@ def evaluate(
     print(f"[Eval] Algorithm: {algorithm.upper()}")
 
     # Create environment
+    # Infer algorithm from filename if not given
+    if algorithm is None:
+        basename = os.path.basename(model_path).lower()
+        if "ppo" in basename:
+            algorithm = "ppo"
+        elif "dqn" in basename:
+            algorithm = "dqn"
+        elif "actorcritic" in basename:
+            algorithm = "actorcritic"
+         
+        elif "cql" in basename: 
+            algorithm = "cql"
+        else:
+            raise ValueError(
+                f"Cannot auto-detect algorithm from filename '{basename}'. "
+                f"Please specify `algorithm=` explicitly (e.g., algorithm='ppo')."
+            )
+    print(f"[Eval] Algorithm: {algorithm.upper()}")
+
+    # Create environment
     render_mode = "human" if render else None
     env = gym.make(ENV_NAME, render_mode=render_mode)
     obs_dim = env.observation_space.shape[0]
     act_dim = env.action_space.n
 
     # Create agent
+    # Create agent
     if algorithm.lower() == "dqn":
         agent = DQNSolver(obs_dim, act_dim, cfg=DQNConfig())
+    elif algorithm.lower() == "ppo":
+        agent = PPOSolver(obs_dim, act_dim, cfg=PPOConfig())
+    elif algorithm.lower() == "actorcritic":
+        agent = ActorCriticSolver(obs_dim, act_dim, cfg=ActorCriticConfig())
+    elif algorithm.lower() == "cql":  
+        agent = CQLSolver(obs_dim, act_dim, cfg=CQLConfig())
     elif algorithm.lower() == "ppo":
         agent = PPOSolver(obs_dim, act_dim, cfg=PPOConfig())
     elif algorithm.lower() == "actorcritic":

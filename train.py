@@ -12,6 +12,7 @@ import time
 import numpy as np
 import gymnasium as gym
 import torch
+import matplotlib.pyplot as plt  # 新增
 
 from agents.cartpole_dqn import DQNSolver, DQNConfig
 from agents.cartpole_ppo import PPOSolver, PPOConfig
@@ -153,6 +154,7 @@ def train(
     agent.save(model_path)
     print(f"[Train] ✅ Saved to: {model_path}")
     return model_path
+
 # ----------------------------
 # Evaluation Function
 # ----------------------------
@@ -180,15 +182,19 @@ def evaluate(
         print(f"[Eval] Using provided model: {model_path}")
 
     # Infer algorithm from filename if not given
+    # 这里顺便提取文件名作为图表的 ID
+    run_id_from_path = os.path.basename(model_path).replace(".torch", "")
+    
     if algorithm is None:
-        basename = os.path.basename(model_path).lower()
+        basename = run_id_from_path.lower()
         if "ppo" in basename:
             algorithm = "ppo"
         elif "dqn" in basename:
             algorithm = "dqn"
         elif "actorcritic" in basename:
             algorithm = "actorcritic"
-         
+        elif "a2c" in basename: # 增加兼容性
+            algorithm = "actorcritic"
         elif "cql" in basename: 
             algorithm = "cql"
         else:
@@ -241,11 +247,39 @@ def evaluate(
                 time.sleep(dt)
 
         scores.append(steps)
-        print(f"[Eval] Episode {ep:2d}: steps = {steps}")
+        if ep % 10 == 0 or episodes <= 10:
+            print(f"[Eval] Episode {ep:2d}: steps = {steps}")
 
     env.close()
     avg = np.mean(scores) if scores else 0.0
     print(f"\n[Eval] 📊 Average over {episodes} episodes: {avg:.2f}")
+
+    # --- 新增：可视化部分 ---
+    if not os.path.exists("results"):
+        os.makedirs("results")
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(scores, label='Score per Episode', color='skyblue', alpha=0.7)
+    
+    # 绘制移动平均线
+    if len(scores) >= 10:
+        ma = np.convolve(scores, np.ones(10)/10, mode='valid')
+        plt.plot(range(9, len(scores)), ma, label='Moving Average (10)', color='red', linewidth=2)
+    
+    plt.axhline(y=475, color='green', linestyle='--', label='Success Threshold (475)')
+    plt.title(f"Evaluation Results: {run_id_from_path}\nAvg: {avg:.2f}")
+    plt.xlabel("Episode Index")
+    plt.ylabel("Total Steps")
+    plt.ylim(0, 520)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    save_path = f"results/eval_{run_id_from_path}.png"
+    plt.savefig(save_path)
+    plt.close()
+    print(f"📊 Evaluation plot saved to: {save_path}")
+    # -----------------------
+
     return scores
 
 
@@ -285,4 +319,4 @@ if __name__ == "__main__":
     # evaluate(episodes=100, render=False)
 
     # ✅ Or evaluate specific model & algo:
-    evaluate(model_path="models/DQN_lr0.0005_gamma0.99_eps0.99.torch", algorithm="dqn", episodes=100, render=True)
+    evaluate(model_path="/Users/mac/Desktop/专业课程/人工智能B/Final_Project/models/A2C_lr0.001_gamma0.99.torch", algorithm="actorcritic", episodes=100, render=False)
